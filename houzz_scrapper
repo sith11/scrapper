@@ -1,0 +1,80 @@
+# import requested for script work
+import requests
+import time
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from pprint import pprint
+from selenium.common.exceptions import NoSuchElementException
+import pandas as pd
+
+# URL = 'https://www.houzz.es/professionals/instalacion-y-reformas-de-cocinas-y-banos/c/Madrid/p/'
+comp = []
+tel = []
+loc = []
+
+
+# setup selenium
+options = webdriver.ChromeOptions()
+options.add_argument('--ignore-certificate-errors')
+options.add_argument('--disable-application-cache')
+#options.add_argument('--headless')
+options.add_argument('--start-maximized')
+path = r'C:\Users\WL-133\anaconda3\Lib\site-packages\selenium\webdriver\chrome\chromedriver.exe'
+driver = webdriver.Chrome(path, options=options)
+
+index = [15,30]
+url_list = []
+
+for i in index:
+    url_list.append(f'https://www.houzz.es/professionals/instalacion-y-reformas-de-cocinas-y-banos/c/Barcelona/p/{i}')
+    
+    for link in url_list:
+        driver.get(link)
+        time.sleep(1)
+         
+        try:
+           driver.find_element_by_class_name('hz-consents-banner').find_element_by_class_name('btn-primary').click()
+           # Wait reload
+           time.sleep(3)
+           
+        except NoSuchElementException:
+            pass
+        
+        nbrTelephones = len(driver.find_elements_by_class_name('hz-pro-search-result__right-info__contact-info'))
+        # For every div where there is a span containing a telephone number
+        for telephone in range(1, nbrTelephones):
+            # Click each span containing a telephone number
+            driver.implicitly_wait(10)
+            driver.find_element_by_class_name('hz-pro-search-result__contact-info__cover').click()
+            time.sleep(1)
+            
+                
+        html = driver.page_source
+        soup = BeautifulSoup(html, features="lxml")
+        results = soup.find(id='hz-page-content-wrapper')
+        companies_elems = results.find_all("div", class_='hz-pro-search-result__info')
+        # Loop over each elem(1 elem is 1 customer)
+        for company_elem in companies_elems:
+            company_name_elem = company_elem.find(
+                'span', class_='header-5 text-unbold mlm')
+            telephone_number_elem = company_elem.find(
+                'span', class_='hz-pro-search-result__contact-info')
+            location_elem = company_elem.find(
+                'span', class_='hz-pro-search-result__location-info__text')
+            if None in (company_name_elem, telephone_number_elem, location_elem):
+                continue
+            comp.append((company_name_elem.text.strip()))
+            tel.append((telephone_number_elem.text.strip()))
+            loc.append((location_elem.text.strip()))
+
+df = pd.DataFrame( 
+    
+    {'Legal Company Name': comp,
+      'Telephone': tel, 
+      'Address': loc
+      })
+
+file_name = r'C:\Users\WL-133\Desktop\GDB SCRAP\Batch_1.xlsx' 
+df.to_excel(file_name)
+
+
